@@ -212,7 +212,7 @@ const DosenKerjaPraktikMahasiswaDetail = () => {
   };
 
 
-  // Function to get status color for profile avatar
+  // Fungsi Warna Profil Sesuai Status
   const getStatusAvatarColor = (status: string) => {
     switch (status) {
       case "Kerja Praktik":
@@ -221,10 +221,6 @@ const DosenKerjaPraktikMahasiswaDetail = () => {
         return "from-purple-500 to-indigo-600 dark:from-purple-600 dark:to-indigo-700";
       case "Selesai":
         return "from-green-500 to-emerald-600 dark:from-green-600 dark:to-emerald-700";
-      case "Skripsi":
-        return "from-orange-500 to-amber-600 dark:from-orange-600 dark:to-amber-700";
-      case "Magang":
-        return "from-indigo-500 to-blue-600 dark:from-indigo-600 dark:to-blue-700";
       case "Lanjut":
         return "from-orange-500 to-amber-600 dark:from-orange-600 dark:to-amber-700";
       case "Gagal":
@@ -234,7 +230,6 @@ const DosenKerjaPraktikMahasiswaDetail = () => {
     }
   };  
 
-  // Updated evaluation criteria with weights as per the image
   const evaluationCriteria = [
     { id: 'kemampuan_penyelesaian', label: 'Kemampuan penyelesaian masalah', weight: 0.40 },
     { id: 'keaktifan_bimbingan', label: 'Keaktifan bimbingan dan Sikap', weight: 0.35 },

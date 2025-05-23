@@ -2,15 +2,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  SquareArrowOutUpRightIcon,
   Printer,
   Calendar,
   ChevronLeft,
@@ -47,16 +38,40 @@ const MahasiswaKerjaPraktekDailyReportIsiAgendaPage = () => {
     useState("success");
   const [absensiNotificationMessage, setAbsensiNotificationMessage] =
     useState("");
-  const [agendaEntries, setAgendaEntries] = useState<
-    { hari_kerja: string; tanggal: string; status: string }[]
-  >([]);
-  const [currentPage, setCurrentPage] = useState(0);
-  const entriesPerPage = 8;
+  // Define types for agenda entries
+  interface AgendaEntry {
+    hari_kerja: string;
+    tanggal: string;
+    status: string;
+  }
+
+  interface CalendarDay {
+    date: Date;
+    isCurrentMonth: boolean;
+    hasEntry: boolean;
+    entry: AgendaEntry | null;
+    isInternshipPeriod: boolean; // Added for tracking KP period
+  }
+
+  const [agendaEntries, setAgendaEntries] = useState<AgendaEntry[]>([]);
+  // currentPage is used in handleAttendanceClick
+  const [, setCurrentPage] = useState(0);
   const [lastAbsensiDate, setLastAbsensiDate] = useState<Date | null>(null);
 
-  // Internship period dates
-  const internshipStartDate = new Date("2025-04-15");
-  const internshipEndDate = new Date("2025-06-25");
+  // Calendar state
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
+
+  // Internship period dates - using current year to avoid date calculation issues
+  const currentYear = new Date().getFullYear();
+  const internshipStartDate = new Date(`${currentYear}-04-15`);
+  const internshipEndDate = new Date(`${currentYear}-05-05`);
+
+  // If current date is after end date for this year, use next year's dates
+  if (new Date() > internshipEndDate) {
+    internshipStartDate.setFullYear(currentYear + 1);
+    internshipEndDate.setFullYear(currentYear + 1);
+  }
 
   // Mahasiswa biodata
   const biodataMahasiswa = {
@@ -81,29 +96,49 @@ const MahasiswaKerjaPraktekDailyReportIsiAgendaPage = () => {
     // Load stored agenda entries from localStorage
     const storedEntries = localStorage.getItem("agendaEntries");
     if (storedEntries) {
-      setAgendaEntries(JSON.parse(storedEntries));
+      try {
+        const parsedEntries = JSON.parse(storedEntries);
+        setAgendaEntries(parsedEntries);
+      } catch (error) {
+        console.error("Error parsing stored agenda entries:", error);
+        // Reset to empty array if there's an error
+        localStorage.removeItem("agendaEntries");
+      }
     }
 
     // Load last absensi date
     const storedLastAbsensiDate = localStorage.getItem("lastAbsensiDate");
     if (storedLastAbsensiDate) {
-      setLastAbsensiDate(new Date(storedLastAbsensiDate));
+      try {
+        setLastAbsensiDate(new Date(storedLastAbsensiDate));
+      } catch (error) {
+        console.error("Error parsing last absensi date:", error);
+        localStorage.removeItem("lastAbsensiDate");
+      }
     }
 
     // Simulate loading time
-    const timer = setTimeout(() => {
+    const loadingTimer = setTimeout(() => {
       setIsLoading(false);
-      
+
       // Calculate internship progress first to use it for notification logic
       const internshipProgress = calculateInternshipProgress();
 
       // Only show warning notification if not completed and not shown before
       if (!internshipProgress.isCompleted && !hasShownNotificationThisSession) {
-        setTimeout(() => {
+        const warningTimer = setTimeout(() => {
           setShowNotification(true);
           sessionStorage.setItem("kpNotificationShown", "true");
         }, 500);
-        setTimeout(() => setShowNotification(false), 10000);
+
+        const hideWarningTimer = setTimeout(() => {
+          setShowNotification(false);
+        }, 10000);
+
+        return () => {
+          clearTimeout(warningTimer);
+          clearTimeout(hideWarningTimer);
+        };
       }
 
       // Show completion notification if completed and not shown before
@@ -111,21 +146,43 @@ const MahasiswaKerjaPraktekDailyReportIsiAgendaPage = () => {
         internshipProgress.isCompleted &&
         !hasShownCompletionNotificationThisSession
       ) {
-        setTimeout(() => {
+        const completionTimer = setTimeout(() => {
           setShowCompletionNotification(true);
           sessionStorage.setItem("kpCompletionNotificationShown", "true");
         }, 1000);
-        // Keep completion notification visible longer
-        setTimeout(() => setShowCompletionNotification(false), 15000);
-      }
-    }, 200); // Loading for 800ms
 
-    return () => clearTimeout(timer);
+        const hideCompletionTimer = setTimeout(() => {
+          setShowCompletionNotification(false);
+        }, 15000);
+
+        return () => {
+          clearTimeout(completionTimer);
+          clearTimeout(hideCompletionTimer);
+        };
+      }
+    }, 100);
+
+    return () => clearTimeout(loadingTimer);
   }, []);
+
+  // Calendar generation effect
+  useEffect(() => {
+    const days = generateCalendarDays(currentMonth);
+    setCalendarDays(days);
+  }, [currentMonth, agendaEntries]);
+
+  // Function to check if a date is within the internship period
+  const isDateInInternshipPeriod = (date: Date): boolean => {
+    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const startOnly = new Date(internshipStartDate.getFullYear(), internshipStartDate.getMonth(), internshipStartDate.getDate());
+    const endOnly = new Date(internshipEndDate.getFullYear(), internshipEndDate.getMonth(), internshipEndDate.getDate());
+    
+    return dateOnly >= startOnly && dateOnly <= endOnly;
+  };
 
   // Function to get random status with only "Disetujui" and "Direvisi" options
   const getRandomStatus = () => {
-    const statuses = ["Disetujui", "Direvisi"];
+    const statuses = ["Disetujui", "Menunggu"];
     const randomIndex = Math.floor(Math.random() * statuses.length);
     return statuses[randomIndex];
   };
@@ -163,6 +220,98 @@ const MahasiswaKerjaPraktekDailyReportIsiAgendaPage = () => {
     });
   };
 
+  // Helper functions for the calendar
+  const generateCalendarDays = (date : Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+
+    // First day of the month
+    const firstDayOfMonth = new Date(year, month, 1);
+    // Last day of the month
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+
+    // Get the day of week of the first day (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+    const firstDayWeekday = firstDayOfMonth.getDay();
+
+    // Calculate how many days we need to show from the previous month
+    const daysFromPrevMonth = firstDayWeekday;
+
+    // Generate days from previous month
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    const prevMonthDays = Array.from({ length: daysFromPrevMonth }, (_, i) => {
+      const date = new Date(year, month - 1, prevMonthLastDay - daysFromPrevMonth + i + 1);
+      return {
+        date: date,
+        isCurrentMonth: false,
+        hasEntry: false,
+        entry: null,
+        isInternshipPeriod: isDateInInternshipPeriod(date)
+      };
+    });
+
+    // Generate days for current month
+    const currentMonthDays = Array.from(
+      { length: lastDayOfMonth.getDate() },
+      (_, i) => {
+        const date = new Date(year, month, i + 1);
+        const dateStr = formatDate(date);
+
+        // Check if this day has an entry
+        const entry = agendaEntries.find(entry =>
+          entry.tanggal === dateStr
+        );
+
+        return {
+          date: date,
+          isCurrentMonth: true,
+          hasEntry: !!entry,
+          entry: entry || null,
+          isInternshipPeriod: isDateInInternshipPeriod(date)
+        };
+      }
+    );
+
+    // Calculate how many days we need to show from the next month
+    const totalDaysShown = 42; // 6 rows of 7 days
+    const daysFromNextMonth = totalDaysShown - prevMonthDays.length - currentMonthDays.length;
+
+    // Generate days from next month
+    const nextMonthDays = Array.from({ length: daysFromNextMonth }, (_, i) => {
+      const date = new Date(year, month + 1, i + 1);
+      return {
+        date: date,
+        isCurrentMonth: false,
+        hasEntry: false,
+        entry: null,
+        isInternshipPeriod: isDateInInternshipPeriod(date)
+      };
+    });
+
+    // Combine all days
+    return [...prevMonthDays, ...currentMonthDays, ...nextMonthDays];
+  };
+
+  const formatMonthYear = (date: Date): string => {
+    return date.toLocaleDateString("id-ID", {
+      month: "long",
+      year: "numeric"
+    });
+  };
+
+  const handlePrevMonth = (): void => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = (): void => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  };
+
+  const handleDateClick = (day: CalendarDay): void => {
+    if (day.hasEntry && day.entry) {
+      navigate(`/mahasiswa/kerja-praktik/daily-report/detail?tanggal=${day.entry.tanggal}`);
+    }
+  };
+
   // Check if user already filled absensi today
   const isAbsensiAllowed = () => {
     if (!lastAbsensiDate) return true;
@@ -179,7 +328,7 @@ const MahasiswaKerjaPraktekDailyReportIsiAgendaPage = () => {
 
   const navigate = useNavigate();
 
-  const showNotificationWithType = (type: string, message: string) => {
+  const showNotificationWithType = (type: string, message: string): void => {
     setAbsensiNotificationType(type);
     setAbsensiNotificationMessage(message);
     setShowAbsensiNotification(true);
@@ -265,38 +414,19 @@ const MahasiswaKerjaPraktekDailyReportIsiAgendaPage = () => {
     setShowAbsensiNotification(false);
   };
 
-  // Pagination handlers
-  const handleNextPage = () => {
-    if ((currentPage + 1) * entriesPerPage < agendaEntries.length) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
+  // This function is not used in the current implementation but kept for future use
+  // const getStatusColor = (status: string): string => {
+  //   switch (status) {
+  //     case "Disetujui":
+  //       return "bg-green-100 text-green-800";
+  //     case "Direvisi":
+  //       return "bg-amber-100 text-amber-800";
+  //     default:
+  //       return "bg-gray-100 text-gray-800";
+  //   }
+  // };
 
-  const handlePreviousPage = () => {
-    if (currentPage > 0) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  // Get current entries for pagination - starting from first entry (index 0)
-  const getCurrentEntries = () => {
-    const startIndex = currentPage * entriesPerPage;
-    return agendaEntries.slice(startIndex, startIndex + entriesPerPage);
-  };
-
-  // Get color for status badge - only for "Disetujui" and "Direvisi"
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Disetujui":
-        return "bg-green-100 text-green-800";
-      case "Direvisi":
-        return "bg-amber-100 text-amber-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const getstatusmahasiswa = (status: string) => {
+  const getstatusmahasiswa = (status: string): string => {
     switch (status) {
       case "Baru":
         return "bg-green-500";
@@ -309,8 +439,14 @@ const MahasiswaKerjaPraktekDailyReportIsiAgendaPage = () => {
     }
   };
 
-  // Get notification styles based on type
-  const getNotificationStyles = (type: string) => {
+  // Get notification styles
+  const getNotificationStyles = (type: string): {
+    border: string;
+    text: string;
+    icon: JSX.Element;
+    buttonClass: string;
+    timerColor: string;
+  } => {
     switch (type) {
       case "success":
         return {
@@ -403,7 +539,7 @@ const MahasiswaKerjaPraktekDailyReportIsiAgendaPage = () => {
                 >
                   <X className="h-4 w-4" />
                 </button>
-                
+
                 {/* Timer countdown line */}
                 <div className="absolute bottom-0 left-0 h-1 bg-amber-500 w-full rounded-b-md" style={{ animation: "countdown 10s linear forwards" }}></div>
               </div>
@@ -441,7 +577,7 @@ const MahasiswaKerjaPraktekDailyReportIsiAgendaPage = () => {
                 >
                   <X className="h-4 w-4" />
                 </button>
-                
+
                 {/* Timer countdown line */}
                 <div className="absolute bottom-0 left-0 h-1 bg-green-500 w-full rounded-b-md" style={{ animation: "countdown 15s linear forwards" }}></div>
               </div>
@@ -490,12 +626,12 @@ const MahasiswaKerjaPraktekDailyReportIsiAgendaPage = () => {
                 >
                   <X className="h-4 w-4" />
                 </button>
-                
+
                 {/* Timer countdown line */}
-                <div 
+                <div
                   className={`absolute bottom-0 left-0 h-1 ${
                     getNotificationStyles(absensiNotificationType).timerColor
-                  } w-full rounded-b-md`} 
+                  } w-full rounded-b-md`}
                   style={{ animation: "countdown 5s linear forwards" }}
                 ></div>
               </div>
@@ -530,7 +666,9 @@ const MahasiswaKerjaPraktekDailyReportIsiAgendaPage = () => {
               </div>
             ) : (
               <div className="bg-gradient-to-r from-white to-gray-50 dark:from-gray-800/40 dark:to-gray-800/20  rounded-lg border border-gray-100 dark:border-gray-700 shadow-md overflow-hidden">
-                {/* Header Section with Avatar */}
+
+
+              {/* Header Section with Avatar */}
                 <div className="bg-gradient-to-br from-purple-600 to-indigo-700 text-white p-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="bg-white dark:bg-gray-800 rounded-full h-12 w-12 flex items-center justify-center shadow-inner border border-primary/20">
@@ -680,7 +818,7 @@ const MahasiswaKerjaPraktekDailyReportIsiAgendaPage = () => {
                       </Tooltip>
                     </TooltipProvider>
 
-                    {/* Print Button with Condition */}
+                    {/*Print Botton Kondisi */}
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -736,164 +874,199 @@ const MahasiswaKerjaPraktekDailyReportIsiAgendaPage = () => {
               </div>
             )}
           </div>
-         
-          {/* Table Section with Pagination */}
-          <div className="bg-gray-50 dark:bg-gray-800/30 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-primary/10 dark:bg-primary/5">
-                  <TableHead className="w-24 sm:w-auto text-center">
-                    {isLoading ? (
-                      <Skeleton className="h-4 w-16 mx-auto" />
-                    ) : (
-                      "Hari Ke-"
-                    )}
-                  </TableHead>
-                  <TableHead className="w-1/2 sm:w-auto text-center">
-                    {isLoading ? (
-                      <Skeleton className="h-4 w-24 mx-auto" />
-                    ) : (
-                      "Tanggal"
-                    )}
-                  </TableHead>
-                  <TableHead className="w-1/4 sm:w-auto text-center">
-                    {isLoading ? (
-                      <Skeleton className="h-4 w-16 mx-auto" />
-                    ) : (
-                      "Status"
-                    )}
-                  </TableHead>
-                  <TableHead className="w-1/4 sm:w-auto text-center">
-                    {isLoading ? (
-                      <Skeleton className="h-4 w-16 mx-auto" />
-                    ) : (
-                      "Aksi"
-                    )}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  // Skeleton rows
-                  [...Array(5)].map((_, index) => (
-                    <TableRow
-                      key={index}
-                      className={index % 2 !== 0 
-                        ? "bg-secondary dark:bg-gray-700/30" 
-                        : "bg-background dark:bg-gray-700/10"}
-                    >
-                      <TableCell className="text-center">
-                        <Skeleton className="h-4 w-8 mx-auto" />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Skeleton className="h-4 w-36 mx-auto" />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Skeleton className="h-6 w-24 rounded-md mx-auto" />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Skeleton className="h-8 w-32 rounded-md mx-auto" />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : // Show actual entries or empty state
-                agendaEntries.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
-                      <div className="flex flex-col items-center justify-center text-gray-500">
-                        <Calendar className="h-10 w-10 mb-2 opacity-50" />
-                        <p className="font-medium">Belum ada entri agenda</p>
-                        <p className="text-sm">
-                          Klik tombol "Absensi" untuk menambahkan entri baru
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  // Display current page entries
-                  getCurrentEntries().map((entry, index) => (
-                    <TableRow
-                      key={index}
-                      className={
-                        index % 2 !== 0
-                          ? "bg-secondary dark:bg-gray-700/30 hover:bg-gray-200/60 dark:hover:bg-gray-700/40 cursor-pointer"
-                          : "bg-background dark:bg-gray-700/10 hover:bg-gray-100/60 dark:hover:bg-gray-700/20 cursor-pointer"
-                      }
-                    >
-                      <TableCell className="text-center font-medium">
-                        {parseInt(entry.hari_kerja)}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {entry.tanggal}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span
-                          className={`inline-flex items-center px-4 py-1 rounded-md text-xs font-medium ${getStatusColor(
-                            entry.status
-                          )}`}
-                        >
-                          {entry.status}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Button
-                          size="sm"
-                          className="text-white bg-blue-500 hover:bg-blue-600 shadow-sm hover:shadow transition-all duration-200"
-                          onClick={() =>
-                            navigate(
-                              `/mahasiswa/kerja-praktik/daily-report/detail?tanggal=${entry.tanggal}`
-                            )
-                          }
-                        >
-                          <SquareArrowOutUpRightIcon className="h-4 w-4 mr-1" />
-                          Lihat Detail
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
 
-            {/* Pagination Controls - Only visible if there are entries and not loading */}
-            {!isLoading && agendaEntries.length > 0 && (
-              <div className="flex justify-between items-center p-4 border-t border-gray-100 dark:border-gray-700">
-                <div className="text-sm text-gray-500">
-                  {currentPage * entriesPerPage + 1} -{" "}
-                  {Math.min(
-                    (currentPage + 1) * entriesPerPage,
-                    agendaEntries.length
-                  )}{" "}
-                  of {agendaEntries.length} row(s) Selected
+          {/* Calendar Section - replacing the table */}
+          <div className="bg-gray-50 dark:bg-gray-800/30 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+            {isLoading ? (
+              <div className="p-4">
+                <Skeleton className="h-8 w-48 mb-4 mx-auto" />
+                <div className="grid grid-cols-7 gap-2">
+                  {Array(7).fill(0).map((_, i) => (
+                    <Skeleton key={`header-${i}`} className="h-8 rounded-md" />
+                  ))}
                 </div>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-7 gap-2 mt-2">
+                  {Array(42).fill(0).map((_, i) => (
+                    <Skeleton key={`day-${i}`} className="h-24 rounded-md" />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Calendar Header */}
+                <div className="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800/50">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handlePreviousPage}
-                    disabled={currentPage === 0}
+                    onClick={handlePrevMonth}
                     className="flex items-center gap-1"
                   >
                     <ChevronLeft className="h-4 w-4" />
-                    Previous
+                    Prev
                   </Button>
+
+                  <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">
+                    {formatMonthYear(currentMonth)}
+                  </h3>
+
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleNextPage}
-                    disabled={
-                      (currentPage + 1) * entriesPerPage >= agendaEntries.length
-                    }
+                    onClick={handleNextMonth}
                     className="flex items-center gap-1"
                   >
                     Next
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
-              </div>
+
+                {/* Weekday Headers */}
+                <div className="grid grid-cols-7 bg-gray-100 dark:bg-gray-700/30">
+                  {["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"].map((day, index) => (
+                    <div
+                      key={day}
+                      className={`py-2 text-center text-sm font-medium ${
+                        index === 0 || index === 6
+                          ? "text-red-500 dark:text-red-400"
+                          : "text-gray-700 dark:text-gray-300"
+                      }`}
+                    >
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Calendar Days Grid */}
+                <div className="grid grid-cols-7 bg-white dark:bg-gray-800/20">
+                  {calendarDays.map((day, index) => (
+                    <div
+                      key={index}
+                      className={`
+                        min-h-24 p-1 border-t border-l border-gray-100 dark:border-gray-700
+                        ${!day.isCurrentMonth ? 'bg-gray-50 dark:bg-gray-800/40 opacity-40' : ''}
+                        ${day.date.getDay() === 0 || day.date.getDay() === 6 ? 'bg-gray-50 dark:bg-gray-800/30' : ''}
+                        ${day.hasEntry ? 'cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/10' : ''}
+                        ${day.isInternshipPeriod && !day.hasEntry ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/20' : ''}
+                        ${index % 7 === 0 ? 'border-l-0' : ''}
+                        ${index < 7 ? 'border-t-0' : ''}
+                        relative
+                      `}
+                      onClick={() => day.hasEntry && handleDateClick(day)}
+                    >
+                      {/* Date Number */}
+                      <div className={`
+                        absolute top-1 right-1 w-6 h-6 flex items-center justify-center rounded-full
+                        ${day.hasEntry && day.entry
+                          ? day.entry.status === 'Disetujui'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                          : day.isInternshipPeriod
+                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border border-red-300 dark:border-red-700'
+                          : 'text-gray-700 dark:text-gray-400'
+                        }
+                        ${!day.isCurrentMonth ? 'text-gray-400 dark:text-gray-600' : ''}
+                        text-sm font-medium
+                      `}>
+                        {day.date.getDate()}
+                      </div>
+
+                      {/* Entry Content */}
+                      {day.hasEntry && day.entry && (
+                        <div className="mt-6 p-1">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className={`
+                                  rounded-md p-2 text-xs
+                                  ${day.entry.status === 'Disetujui'
+                                    ? 'bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-900/20'
+                                    : 'bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/20'
+                                  }
+                                `}>
+                                  <div className="flex justify-between items-center mb-1">
+                                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                                      Hari Ke-{day.entry.hari_kerja}
+                                    </span>
+                                    {day.entry.status === 'Disetujui' ? (
+                                      <CheckCircle className="h-3 w-3 text-green-500" />
+                                    ) : (
+                                      <AlertTriangle className="h-3 w-3 text-amber-500" />
+                                    )}
+                                  </div>
+                                  <div className={`
+                                    text-xs px-1.5 py-0.5 rounded-sm w-fit mt-1
+                                    ${day.entry.status === 'Disetujui'
+                                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                      : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                                    }
+                                  `}>
+                                    {day.entry.status}
+                                  </div>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Klik untuk melihat detail</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      )}
+
+                      {/* Internship Period Indicator for dates without entries */}
+                      {day.isInternshipPeriod && !day.hasEntry && (
+                        <div className="mt-6 p-1">
+                          <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/20 rounded-md p-2 text-xs">
+                            <div className="flex justify-between items-center">
+                              <span className="font-semibold text-red-700 dark:text-red-300 text-xs">
+                                Hari KP
+                              </span>
+                              <AlertTriangle className="h-3 w-3 text-red-500" />
+                            </div>
+                            <div className="text-xs px-1.5 py-0.5 rounded-sm w-fit mt-1 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                              Belum Absen
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Today indicator */}
+                      {day.date.toDateString() === new Date().toDateString() && (
+                        <div className="absolute bottom-1 left-1 w-2 h-2 bg-blue-500 rounded-full"></div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Legend */}
+                <div className="p-3 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800/50 flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                    <span>Disetujui</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
+                    <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                    <span>Menunggu</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
+                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                    <span>Belum Absen</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                    <span>Hari Ini</span>
+                  </div>
+
+                  {agendaEntries.length === 0 && (
+                    <div className="ml-auto text-sm text-gray-500">
+                      <Calendar className="h-4 w-4 inline-block mr-1 opacity-50" />
+                      <span>Belum ada entri agenda. Klik tombol "Absensi" untuk menambahkan.</span>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
-      
+
           <style type="text/css">{`
             @keyframes slideIn {
               from {
@@ -905,7 +1078,7 @@ const MahasiswaKerjaPraktekDailyReportIsiAgendaPage = () => {
                 opacity: 1;
               }
             }
-            
+
             @keyframes countdown {
               from {
                 width: 100%;

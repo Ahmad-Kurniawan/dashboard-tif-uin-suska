@@ -528,7 +528,7 @@ export const DosenKerjaPraktikmahasiswaBimbinganpage = () => {
           </div>
         </motion.div>
 
-        {/* Student Cards - 2 columns grid on desktop */}
+        {/* Student Cards */}
         <motion.div
           variants={containerVariants}
           initial="hidden"

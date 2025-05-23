@@ -244,7 +244,7 @@ const DailyReportKerjaPraktikMahasiswaDetailPage = () => {
         </div>
       </div>
       
-      <div>
+      <div className="bg-white shadow-sm border border-gray-100 rounded-md p-4">
         <h1>
           Berikan Komentar Daily Report Mahasiswa{" "}
           <span className="text-red-500">*</span>

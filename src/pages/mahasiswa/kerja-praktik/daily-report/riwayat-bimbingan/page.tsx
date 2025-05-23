@@ -14,13 +14,13 @@ import { Badge } from "@/components/ui/badge";
 import { Eye, CheckCircle, AlertCircle, Award, X, EyeClosed } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton component
+import { Skeleton } from "@/components/ui/skeleton"; 
 
 const BimbinganKerjaPraktikPage = () => {
   const [isReviewBimbinganModal, setReviewBimbinganModal] = useState(false);
   const [showLoginNotification, setShowLoginNotification] = useState(false);
   const [hoveredButtonId, setHoveredButtonId] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Add loading state
+  const [isLoading, setIsLoading] = useState(true); 
 
   // Cek apakah ini pertama kali login
   useEffect(() => {
@@ -40,7 +40,7 @@ const BimbinganKerjaPraktikPage = () => {
   useEffect(() => {
     const loadData = setTimeout(() => {
       setIsLoading(false);
-    }, 200); 
+    }, 100); 
 
     return () => clearTimeout(loadData);
   }, []);
@@ -394,16 +394,15 @@ const BimbinganKerjaPraktikPage = () => {
           )}
         </div>
 
-        {/* Timeline */}
+        {/* Table Header */}
         <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-200">
           Riwayat Bimbingan
         </h2>
 
-        {/* Table with loading state */}
+        {/* Table */}
         {isLoading ? (
           <TableSkeleton />
         ) : (
-          /* Enhanced Table - Actual Content */
           <div className="bg-gray-50 dark:bg-gray-800/30 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
             <Table>
               <TableHeader>

@@ -55,7 +55,7 @@ const InstansiKerjaPraktikPage = () => {
     };
   }, []);
 
-  // Extended student list to demonstrate pagination with added dailyReports
+  // Dumy data Mahasiswa
   const students = [
     {
       id: 1,
@@ -173,7 +173,7 @@ const InstansiKerjaPraktikPage = () => {
     student.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Calculate pagination values
+  // Fungsi untuk menghitung total halaman
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -464,8 +464,9 @@ const InstansiKerjaPraktikPage = () => {
               />
             </div>
           </CardHeader>
-          <CardContent className="p-0">
-            
+
+          {/* Table Section */}
+          <CardContent className="p-0">  
             <Table>
               <TableHeader className="bg-slate-50">
                 <TableRow className="hover:bg-slate-50">
