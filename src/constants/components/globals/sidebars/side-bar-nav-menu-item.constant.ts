@@ -2,10 +2,11 @@ import { SideBarNavMenuItemsProps } from "@/interfaces/components/globals/sideba
 import {
   BackpackIcon,
   BookOpen,
+  CalendarCheck2Icon,
   GraduationCap,
+  GraduationCapIcon,
   LayoutGridIcon,
   LucideHistory,
-  MedalIcon,
   PieChart,
   UserRoundPenIcon,
 } from "lucide-react";
@@ -30,22 +31,6 @@ export const SideBarNavMenuItems: SideBarNavMenuItemsProps = {
     {
       label: "Kerja Praktik",
       menus: [
-        {
-          title: "Administrasi",
-          url: "#",
-          icon: UserRoundPenIcon,
-          isActive: true,
-          items: [
-            {
-              title: "Permohonan",
-              url: "/mahasiswa/kerja-praktik/daftar-kp/permohonan",
-            },
-            {
-              title: "Kelengkapan Berkas",
-              url: "/mahasiswa/kerja-praktik/daftar-kp/kelengkapan-berkas",
-            },
-          ],
-        },
         {
           title: "Daily Report",
           url: "/mahasiswa/kerja-praktik/daily-report",
@@ -86,7 +71,7 @@ export const SideBarNavMenuItems: SideBarNavMenuItemsProps = {
         {
           title: "Mahasiswa Uji",
           url: "/dosen/seminar-kp/nilai-penguji",
-          icon: BackpackIcon,
+          icon: GraduationCapIcon,
         },
       ],
     },
@@ -96,42 +81,28 @@ export const SideBarNavMenuItems: SideBarNavMenuItemsProps = {
       label: "Koordinator KP",
       menus: [
         {
-          title: "Administrasi",
-          url: "#",
+          title: "Monitoring Progres",
+          url: "/koordinator-kp/kerja-praktik/daily-report",
           isActive: true,
-          icon: LayoutGridIcon,
-          items: [
-            {
-              title: "Permohonan",
-              url: "/koordinator-kp/kerja-praktik/permohonan",
-            },
-            {
-              title: "Validasi Berkas",
-              url: "/koordinator-kp/kerja-praktik/validasi-berkas",
-            },
-            {
-              title: "Daily Report",
-              url: "/koordinator-kp/kerja-praktik/daily-report",
-            },
-          ],
+          icon: LayoutGridIcon,          
         },
         {
           title: "Seminar",
           url: "#",
           isActive: true,
-          icon: MedalIcon,
+          icon: CalendarCheck2Icon,
           items: [
             {
-              title: "Validasi Berkas",
+              title: "Validasi Pemberkasan",
               url: "/koordinator-kp/seminar-kp/validasi-berkas",
             },
             {
-              title: "Nilai",
-              url: "/koordinator-kp/seminar-kp/nilai",
+              title: "Penjadwalan",
+              url: "/koordinator-kp/seminar-kp/jadwal",
             },
             {
-              title: "Jadwal Seminar",
-              url: "/koordinator-kp/seminar-kp/jadwal",
+              title: "Penilaian",
+              url: "/koordinator-kp/seminar-kp/nilai",
             },
           ],
         },

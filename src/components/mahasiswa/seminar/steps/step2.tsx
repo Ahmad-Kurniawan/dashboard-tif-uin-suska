@@ -4,7 +4,7 @@ import Stepper from "@/components/mahasiswa/seminar/stepper";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CheckCircle2, ExternalLink } from "lucide-react";
+import { CheckCircle2, ExternalLink, LayoutGridIcon } from "lucide-react";
 import Status from "../status";
 import { Label } from "@/components/ui/label";
 import InfoCard from "../informasi-seminar";
@@ -31,6 +31,7 @@ interface Step2Props {
 
 interface CardHeaderProps {
   title: string;
+  status?: DocumentStatus;
 }
 
 interface IDInputCardProps {
@@ -42,8 +43,8 @@ interface IDInputCardProps {
 }
 
 // Komponen CardHeaderGradient
-const CardHeaderGradient: FC<CardHeaderProps> = ({ title }) => (
-  <div className="bg-gradient-to-r from-emerald-600 to-green-500 px-6 py-4">
+const CardHeaderGradient: FC<CardHeaderProps> = ({ title, status }) => (
+  <div className={`bg-gradient-to-r ${status === "Ditolak" ? "from-red-600 to-rose-500" : "from-emerald-600 to-green-500"} px-6 py-4`}>
     <CardTitle className="text-white text-lg font-medium">{title}</CardTitle>
   </div>
 );
@@ -59,6 +60,8 @@ const InstructionCard: FC = () => (
         </p>
         <a
           href="https://seminar-fst.uin-suska.ac.id/akademik/prosedur/seminar"
+          target="_blank"
+          rel="noopener noreferrer"
           className="cursor-pointer inline-flex items-center font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:underline transition-colors duration-200"
         >
           https://seminar-fst.uin-suska.ac.id/akademik/prosedur/seminar
@@ -110,7 +113,7 @@ const IDInputCard: FC<IDInputCardProps> = ({
 
   return (
     <Card className="h-full overflow-hidden rounded-xl border shadow-none dark:border-none dark:bg-gray-900">
-      <CardHeaderGradient title="Silakan Masukkan ID Pengajuan" />
+      <CardHeaderGradient status={status} title="Silahkan Masukkan ID Pengajuan" />
       <CardContent className="flex flex-col h-[calc(100%-4rem)] gap-4 p-6">
         <div className="space-y-2">
           <Label
@@ -129,7 +132,7 @@ const IDInputCard: FC<IDInputCardProps> = ({
               }
               value={inputValue}
               onChange={handleInputChange}
-              className="border-gray-200 dark:border-gray-700 focus:border-emerald-500 focus:ring-emerald-500 dark:focus:border-emerald-400 dark:focus:ring-emerald-400 pl-3 pr-3 py-2"
+              className={`border-gray-200 dark:border-gray-700 ${status == "Terkirim" ? 'focus:border-yellow-500 focus:ring-yellow-500 dark:focus:border-yellow-400 dark:focus:ring-yellow-400' : status == "Ditolak" ? 'focus:border-red-500 focus:ring-red-500 dark:focus:border-red-400 dark:focus:ring-red-400' : 'focus:border-blue-500 focus:ring-blue-500 dark:focus:border-blue-400 dark:focus:ring-blue-400'} pl-3 pr-3 py-2`}
               readOnly={readOnly}
             />
           </div>
@@ -182,9 +185,10 @@ const Step2: FC<Step2Props> = ({ activeStep }) => {
       });
     },
     onSuccess: (response, newIdPengajuan) => {
+      console.log("ID Pengajuan berhasil dikirim:", response);
       toast({
         title: "👌 Berhasil",
-        description: `ID Pengajuan berhasil dikirim dengan ID: ${response.id}`,
+        description: `ID Pengajuan berhasil dikirim`,
         duration: 3000,
       });
       setLastSubmittedId(newIdPengajuan); // Simpan ID yang dikirim
@@ -207,7 +211,7 @@ const Step2: FC<Step2Props> = ({ activeStep }) => {
       const step2Accessible = data.data.steps_info.step2_accessible;
 
       if (step2Docs.length > 0) {
-        const apiIdPengajuan = step2Docs[0].id_pengajuan || "";
+        const apiIdPengajuan = step2Docs[0].link_path || "";
         // Prioritaskan lastSubmittedId jika ada, jika tidak gunakan dari API
         setIdPengajuan(lastSubmittedId || apiIdPengajuan);
         setStep2Status(step2Docs[0].status as DocumentStatus);
@@ -247,7 +251,16 @@ const Step2: FC<Step2Props> = ({ activeStep }) => {
                   year: "numeric",
                 })
               : "Belum diisi"
-          } - ${data.data.pendaftaran_kp[0]?.tanggal_selesai || "Belum diisi"}`,
+          } - ${data.data.pendaftaran_kp[0]?.tanggal_selesai
+              ? new Date(
+                  data.data.pendaftaran_kp[0].tanggal_selesai
+                ).toLocaleDateString("id-ID", {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                })
+              : "Belum diisi"
+          }`,
         }
       : {};
   }, [data]);
@@ -299,15 +312,15 @@ const Step2: FC<Step2Props> = ({ activeStep }) => {
       case "Ditolak":
         return {
           title: "Input ID Pengajuan Surat Undangan Anda Ditolak",
-          subtitle: komentar || "Silakan masukkan kode yang benar!",
+          subtitle: komentar || "Silahkan masukkan kode yang benar!",
           readonly: false,
-          defaultValue: undefined,
+          defaultValue: idPengajuan || lastSubmittedId || "",
         };
       case "default":
       default:
         return {
           title: "Anda belum memasukkan ID Pengajuan Surat Undangan Seminar KP",
-          subtitle: "Silakan masukkan ID Pengajuan Surat Undangan Seminar KP!",
+          subtitle: "Silahkan masukkan ID Pengajuan Surat Undangan Seminar KP!",
           readonly: false,
           defaultValue: undefined,
         };
@@ -359,9 +372,15 @@ const Step2: FC<Step2Props> = ({ activeStep }) => {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-medium mb-8">
-        Validasi Kelengkapan Berkas Seminar Kerja Praktik
-      </h1>
+      <div className="flex mb-5">
+        <span className="bg-white flex justify-center items-center shadow-sm text-gray-800 dark:text-gray-200 dark:bg-gray-900 px-2 py-0.5 rounded-md border border-gray-200 dark:border-gray-700 text-md font-medium tracking-tight">
+          <span
+            className={`inline-block animate-pulse w-3 h-3 rounded-full mr-2 bg-yellow-400`}
+          />
+          <LayoutGridIcon className="w-4 h-4 mr-1.5" />
+          Validasi Kelengkapan Berkas Seminar Kerja Praktik Mahasiswa            
+        </span>
+      </div>
 
       <Stepper activeStep={activeStep} />
 

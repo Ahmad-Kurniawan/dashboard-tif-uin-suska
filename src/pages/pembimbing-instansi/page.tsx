@@ -16,7 +16,6 @@ import {
   Eye,
   EyeClosed,
 } from "lucide-react";
-// import icon_dosenpa_page from "@/assets/svgs/dosen/setoran-hafalan/mahasiswa/icon_dosenpa_page.svg";
 import {
   Table,
   TableBody,
@@ -52,11 +51,10 @@ const PembimbingInstansiKerjaPraktikMahasiswaPage = () => {
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const itemsPerPage = 10;
 
-  const {
-    data: mahasiswaInstansiSaya,
-    isLoading,
-    error,
-  } = useQuery<MahasiswaInstansiSayaResponse, Error>({
+  const { data: mahasiswaInstansiSaya, isLoading } = useQuery<
+    MahasiswaInstansiSayaResponse,
+    Error
+  >({
     queryKey: ["mahasiswa-instansi-saya", email],
     queryFn: () =>
       APIKerjaPraktik.getMahasiswaInstansiSaya(email!).then((res) => res.data),
@@ -76,23 +74,6 @@ const PembimbingInstansiKerjaPraktikMahasiswaPage = () => {
       return "-";
     }
   };
-
-  // const calculateProgress = (
-  //   tanggalMulai: string,
-  //   tanggalSelesai: string
-  // ): number => {
-  //   try {
-  //     const start = new Date(tanggalMulai).getTime();
-  //     const end = new Date(tanggalSelesai).getTime();
-  //     const today = new Date().getTime();
-  //     const totalDuration = end - start;
-  //     const elapsed = today - start;
-  //     const progress = (elapsed / totalDuration) * 100;
-  //     return Math.min(Math.max(Math.round(progress), 0), 100);
-  //   } catch {
-  //     return 0;
-  //   }
-  // };
 
   const filteredStudents = (mahasiswaInstansiSaya?.mahasiswa || []).filter(
     (student) =>
@@ -252,28 +233,18 @@ const PembimbingInstansiKerjaPraktikMahasiswaPage = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 1 }}
-          className="w-10 h-10 border-t-2 border-indigo-500 rounded-full"
-        />
+        <div className="w-10 h-10 border-t-2 border-indigo-500 rounded-full" />
       </div>
     );
   }
 
-  if (error || !mahasiswaInstansiSaya) {
+  if (!mahasiswaInstansiSaya) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
         <AlertTriangle className="w-12 h-12 mb-4 text-red-500" />
         <p className="mb-4 text-lg font-medium text-gray-700 dark:text-gray-300">
-          {error?.message || "Data tidak ditemukan.."}
+          Waduh, data tidak ditemukan nih! 😭
         </p>
-        <Button
-          className="bg-indigo-600 hover:bg-indigo-700"
-          onClick={() => window.location.reload()}
-        >
-          Coba Lagi
-        </Button>
       </div>
     );
   }
@@ -282,10 +253,10 @@ const PembimbingInstansiKerjaPraktikMahasiswaPage = () => {
     <div className="min-h-screen p-6 md:p-8 bg-gray-50 dark:bg-gray-900">
       {/* Top Section */}
       <motion.div
-        className="flex items-center justify-between mb-8"
-        initial={{ opacity: 0, y: -20 }}
+        className="flex items-center justify-between mb-6"
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+        transition={{ delay: 0.3, duration: 0.7 }}
       >
         <div>
           <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
@@ -301,27 +272,26 @@ const PembimbingInstansiKerjaPraktikMahasiswaPage = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2, duration: 0.7 }}
+        transition={{ delay: 0.3, duration: 0.7 }}
       >
         <Card className="mb-8 border-none shadow-xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-md">
-          <div className="flex items-center justify-between p-6 text-white bg-gradient-to-br from-indigo-600 to-purple-700 rounded-t-xl">
+          <div className="flex items-center justify-between p-6 text-white bg-gradient-to-br from-indigo-600 to-purple-700 rounded-xl">
             <div className="flex items-center gap-4">
               <div className="flex items-center justify-center border rounded-full shadow-inner w-14 h-14 bg-white/10 border-white/20">
                 <User className="w-8 h-8 text-white" />
               </div>
               <div>
                 <h3 className="text-xl font-bold">
-                  {mahasiswaInstansiSaya.pembimbing_instansi.nama || "Unknown"}
+                  {mahasiswaInstansiSaya.pembimbing_instansi.nama || "-"}
                 </h3>
                 <p className="text-sm text-white/80">
-                  {mahasiswaInstansiSaya.pembimbing_instansi.jabatan ||
-                    "Unknown"}
+                  {mahasiswaInstansiSaya.pembimbing_instansi.jabatan || "-"}
                 </p>
               </div>
             </div>
             <Button
               variant="ghost"
-              className="text-white hover:bg-white/20"
+              className="text-white bg-white/20 hover:bg-white/30"
               onClick={() => setIsProfileExpanded(!isProfileExpanded)}
             >
               {isProfileExpanded ? (
@@ -329,7 +299,7 @@ const PembimbingInstansiKerjaPraktikMahasiswaPage = () => {
               ) : (
                 <ChevronDown className="w-5 h-5" />
               )}
-              Detail Instansi
+              Detail
             </Button>
           </div>
           <AnimatePresence>
@@ -344,7 +314,7 @@ const PembimbingInstansiKerjaPraktikMahasiswaPage = () => {
                       </p>
                       <p className="text-base text-gray-900 dark:text-white">
                         {mahasiswaInstansiSaya.pembimbing_instansi.instansi
-                          .nama || "Unknown"}
+                          .nama || "-"}
                       </p>
                     </div>
                   </div>
@@ -356,7 +326,7 @@ const PembimbingInstansiKerjaPraktikMahasiswaPage = () => {
                       </p>
                       <p className="text-base text-gray-900 dark:text-white">
                         {mahasiswaInstansiSaya.pembimbing_instansi.instansi
-                          .alamat || "Unknown"}
+                          .alamat || "-"}
                       </p>
                     </div>
                   </div>
@@ -378,56 +348,6 @@ const PembimbingInstansiKerjaPraktikMahasiswaPage = () => {
           </AnimatePresence>
         </Card>
       </motion.div>
-      {/* Welcome Card */}
-      {/* <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4, duration: 0.7 }}
-      >
-        <Card className="relative mb-8 overflow-hidden border-none bg-gradient-to-r from-indigo-500 to-purple-600">
-          <motion.div
-            className="absolute w-40 h-40 bg-white rounded-full -top-10 -right-10 opacity-10"
-            animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.15, 0.1] }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              repeatType: "reverse",
-            }}
-          />
-          <motion.div
-            className="absolute w-48 h-48 bg-white rounded-full -bottom-14 -left-14 opacity-5"
-            animate={{ scale: [1, 1.3, 1], opacity: [0.05, 0.1, 0.05] }}
-            transition={{
-              duration: 10,
-              repeat: Infinity,
-              repeatType: "reverse",
-            }}
-          />
-          <CardHeader className="pb-32">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.5, duration: 0.6 }}
-            >
-              <CardTitle className="text-3xl font-bold text-white">
-                Selamat Datang,{" "}
-                {mahasiswaInstansiSaya.pembimbing_instansi.nama || "Pembimbing"} !
-              </CardTitle>
-              <CardDescription className="text-lg text-white/80">
-                Pantau dan kelola progress mahasiswa kerja praktik...
-              </CardDescription>
-            </motion.div>
-          </CardHeader>
-          <motion.div
-            className="absolute bottom-0 right-0"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.7, duration: 0.8 }}
-          >
-            <img src={icon_dosenpa_page} alt="Decorative icon" />
-          </motion.div>
-        </Card>
-      </motion.div> */}
       {/* Student List Section */}
       <motion.div
         initial={{ opacity: 0, y: 30 }}
@@ -438,7 +358,7 @@ const PembimbingInstansiKerjaPraktikMahasiswaPage = () => {
           <CardHeader className="flex flex-col items-start justify-between pb-4 border-b border-gray-200 sm:flex-row sm:items-center dark:border-gray-700">
             <div>
               <CardTitle className="text-xl text-gray-800 dark:text-white">
-                Daftar Mahasiswa
+                Mahasiswa Kerja Praktik
               </CardTitle>
               <CardDescription className="text-gray-500 dark:text-gray-400">
                 Teknik Informatika - Universitas Islam Negeri Sultan Syarif
